@@ -1,2 +1,2 @@
 # beauty_ai_assistant
-Assistente conversacional para recomendação de produtos com busca inteligente e testes A/B (Django + Elasticsearch).
+AI-powered conversational backend for product search and recommendation using Django, Elasticsearch, and A/B testing.
