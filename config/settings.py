@@ -11,6 +11,12 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
+
+
+ELASTICSEARCH_URL = config("ELASTICSEARCH_URL", default="http://localhost:9200")
+ELASTICSEARCH_USER = config("ELASTICSEARCH_USER", default="elastic")
+ELASTICSEARCH_PASSWORD = config("ELASTICSEARCH_PASSWORD", default="")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
