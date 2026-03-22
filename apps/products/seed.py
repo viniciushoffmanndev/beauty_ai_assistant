@@ -24,6 +24,7 @@ def run():
 
         Product.objects.create(
             name=name,
+            brand=brand,
             description=description,
             price=round(random.uniform(80, 200), 2),
             category="perfume",
