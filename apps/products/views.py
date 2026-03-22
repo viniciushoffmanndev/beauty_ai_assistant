@@ -12,19 +12,34 @@ def search_products(request):
     query = request.GET.get("q", "").lower()
     page = int(request.GET.get("page", 1))
     size = int(request.GET.get("size", 10))
-    mode = request.GET.get("mode", "default")  
-    # mode pode ser "autocomplete" ou "default"
+    mode = request.GET.get("mode", "default")
+    target = request.GET.get("target", None)
 
     if not query:
         return Response([])
 
     try:
+        # tokens da query
+        tokens = query.split()
+
         if mode == "autocomplete":
-            # Autocomplete rápido com phrase_prefix
             q = Q("multi_match", query=query,
                   fields=["name^3", "brand", "flavor", "target"],
                   type="phrase_prefix")
-            s = Search(using=es, index="products").query(q).filter("term", is_active=True)[:5]
+            s = Search(using=es, index="products").query(q).filter("term", is_active=True)
+
+            # aplica filtros automáticos
+            if "feminino" in tokens:
+                s = s.filter("term", target="feminino")
+            elif "masculino" in tokens:
+                s = s.filter("term", target="masculino")
+
+            if "cítrico" in tokens:
+                s = s.filter("term", flavor="cítrico")
+            elif "amadeirado" in tokens:
+                s = s.filter("term", flavor="amadeirado")
+
+            s = s[:5]
             response = s.execute()
 
             results = [
@@ -40,11 +55,25 @@ def search_products(request):
             return Response(results)
 
         else:
-            # Busca completa com fuzziness
             q = Q("multi_match", query=query,
                   fields=["name^3", "description", "brand", "flavor", "target"],
                   fuzziness="AUTO")
             s = Search(using=es, index="products").query(q).filter("term", is_active=True)
+
+            # aplica filtros automáticos
+            if "feminino" in tokens:
+                s = s.filter("term", target="feminino")
+            elif "masculino" in tokens:
+                s = s.filter("term", target="masculino")
+
+            if "cítrico" in tokens:
+                s = s.filter("term", flavor="cítrico")
+            elif "amadeirado" in tokens:
+                s = s.filter("term", flavor="amadeirado")
+
+            if target:
+                s = s.filter("term", target=target)
+
             start = (page - 1) * size
             s = s[start:start + size]
             response = s.execute()
@@ -59,11 +88,25 @@ def search_products(request):
             })
 
     except ConnectionError:
-        # fallback ORM
         queryset = Product.objects.filter(is_active=True).filter(
             DjangoQ(name__icontains=query) |
             DjangoQ(description__icontains=query) |
             DjangoQ(brand__icontains=query)
         )
+
+        # aplica filtros automáticos também no fallback ORM
+        if "feminino" in query:
+            queryset = queryset.filter(target="feminino")
+        elif "masculino" in query:
+            queryset = queryset.filter(target="masculino")
+
+        if "cítrico" in query:
+            queryset = queryset.filter(flavor="cítrico")
+        elif "amadeirado" in query:
+            queryset = queryset.filter(flavor="amadeirado")
+
+        if target:
+            queryset = queryset.filter(target=target)
+
         serializer = ProductSerializer(queryset, many=True)
         return Response(serializer.data)
