@@ -4,7 +4,9 @@ from elasticsearch_dsl import Search
 from apps.products import views
 import pytest
 from django.urls import reverse
-from elasticsearch import ConnectionError  # mesma importação da view
+from elasticsearch import ConnectionError
+from django.test import Client
+
 
 # Função auxiliar para busca normal (não autocomplete)
 def run_search(client, query, expected_target=None, expected_flavor=None, expect_empty=False):
@@ -139,6 +141,44 @@ def test_autocomplete_partial(client, query):
     # Se houver itens, o teste passa; se não houver, também passa
     if data:
         assert len(data) > 0
+
+@pytest.mark.django_db
+def test_webhook_validation_success():
+    client = Client()
+    response = client.get(
+        "/api/products/webhook/",
+        {
+            "hub.mode": "subscribe",
+            "hub.verify_token": "whatsapp_webhook",
+            "hub.challenge": "12345"
+        }
+    )
+    assert response.status_code == 200
+    assert response.content.decode() == "12345"
+
+
+@pytest.mark.django_db
+def test_webhook_validation_fail():
+    client = Client()
+    response = client.get(
+        "/api/products/webhook/",
+        {
+            "hub.mode": "subscribe",
+            "hub.verify_token": "token_errado",
+            "hub.challenge": "12345"
+        }
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_webhook_post_event():
+    client = Client()
+    payload = {"messages": [{"from": "5518997425240", "text": {"body": "Olá"}}]}
+    response = client.post("/api/products/webhook/", data=payload, content_type="application/json")
+    assert response.status_code == 200
+    assert response.content.decode() == "EVENT_RECEIVED"
+
 
 
 
