@@ -10,6 +10,7 @@ from django.http import HttpResponse
 import requests
 from .services import search_products_in_es
 from django.views.decorators.csrf import csrf_exempt
+import json
 
 
 @api_view(['GET'])
@@ -116,8 +117,6 @@ def search_products(request):
         serializer = ProductSerializer(queryset, many=True)
         return Response(serializer.data)
 
-import json
-
 @csrf_exempt
 def whatsapp_webhook(request):
     if request.method == "GET":
@@ -159,28 +158,39 @@ def whatsapp_webhook(request):
 
     return HttpResponse("METHOD_NOT_ALLOWED", status=405)
 
+import requests
+
 def send_whatsapp_message(to, results):
     total = len(results)
-    shown_results = results[:3]  # mostra só os 3 primeiros
 
     if total == 0:
         text = "Não encontrei produtos para sua busca. Deseja tentar outra categoria?"
-    else:
-        text = f"Encontrei {total} perfumes relacionados. Aqui estão os {len(shown_results)} primeiros:\n"
-        for r in shown_results:
-            # se tiver preço, pode incluir também
-            price = r.get("price", None)
+    elif total <= 10:
+        text = f"Encontrei {total} perfumes relacionados:\n"
+        for r in results:
+            price = r.get("price")
             if price:
                 text += f"- {r['name']} ({r['brand']}) - R$ {price}\n"
             else:
                 text += f"- {r['name']} ({r['brand']})\n"
+    else:
+        shown_results = results[:3]
+        text = f"Encontrei {total} perfumes relacionados. Aqui estão os 3 primeiros:\n"
+        for r in shown_results:
+            price = r.get("price")
+            if price:
+                text += f"- {r['name']} ({r['brand']}) - R$ {price}\n"
+            else:
+                text += f"- {r['name']} ({r['brand']})\n"
+        text += "\nResponda 'mais' para ver outros."
 
-        if total > len(shown_results):
-            text += "\nResponda 'mais' para ver outros."
+    # Configuração da API do WhatsApp Cloud
+    phone_number_id = "1105730849281197"  # substitua pelo seu Phone Number ID real
+    access_token = "EAAXyR3yUZCKEBRNaMeFsbtgwVG9JMUyVrwaZAUbHcybRKK1eoQSUkQ293p9Gxop3YfDks8amKjlJaNQgt5DZB3jjMSus5sG7p2H2gfHSS3D3vLYjIZCvdLQZCtmZAZAuRhKfxKLInmZAQtYUWMhSBOgqwZC5xJgVBCGWrP4rE3kFvF94kzT38p8AcszXewiBnDJ62KfkoXCKWix3WRnZAjDLGDZCGZB37riVKRqOedzlpBHGNtp9PUFPRXyHmUQ5YNa1Om3bbBm8QKZB4GzoD5fSniUMJSDBmr2Kz8rj3MRKulwZDZD"  # substitua pelo token válido do Meta
 
-    url = "https://graph.facebook.com/v25.0/1105730849281197/messages"
+    url = f"https://graph.facebook.com/v25.0/{phone_number_id}/messages"
     headers = {
-        "Authorization": "Bearer SEU_ACCESS_TOKEN_REAL",
+        "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
     payload = {
