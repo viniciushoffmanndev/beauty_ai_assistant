@@ -1,18 +1,38 @@
 from django.db import models
 
 class Product(models.Model):
+    # Identificação
+    external_id = models.CharField(max_length=100)
+    source = models.CharField(max_length=100)  # ex: boticario
+
+    # Básico
     name = models.CharField(max_length=255)
     brand = models.CharField(max_length=100)
-    category = models.CharField(max_length=100)
+    
+    # Preços
     price = models.FloatField()
-    description = models.TextField()
+    old_price = models.FloatField(null=True, blank=True)
+    discount = models.IntegerField(null=True, blank=True)
 
-    flavor = models.CharField(max_length=50, null=True, blank=True)
-    target = models.CharField(max_length=50, null=True, blank=True)
+    # Avaliação
+    rating = models.FloatField(null=True, blank=True)
+    review_count = models.IntegerField(null=True, blank=True)
 
+    # Conteúdo
+    description = models.TextField(null=True, blank=True)
+
+    # Mídia / links
+    url = models.URLField()
+    image = models.URLField(null=True, blank=True)
+
+    # Controle
     is_active = models.BooleanField(default=True)
+    scraped_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        unique_together = ("external_id", "source")
+
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.source})"
     
