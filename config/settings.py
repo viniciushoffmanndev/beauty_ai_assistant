@@ -37,6 +37,12 @@ ALLOWED_HOSTS = [
     "elinor-sublunary-abbie.ngrok-free.dev"
 ]
 
+ELASTICSEARCH_DSL = {
+    'default': {
+        'hosts': 'http://localhost:9200',
+        'http_auth': ('elastic', 'SUA_SENHA_AQUI'),
+    },
+}
 
 # Application definition
 
@@ -52,7 +58,8 @@ INSTALLED_APPS = [
     'apps.experiments',
     'apps.products',
     'apps.recommender',
-    'apps.search'
+    'apps.search',
+    'django_elasticsearch_dsl'
 ]
 
 MIDDLEWARE = [
