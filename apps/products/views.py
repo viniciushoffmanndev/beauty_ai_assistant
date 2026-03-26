@@ -7,11 +7,36 @@ from elasticsearch_dsl import Q, Search
 from .models import Product
 from .serializers import ProductSerializer
 from apps.products.whatsapp.handlers import handle_whatsapp_message
+from elasticsearch import Elasticsearch
 
+es = Elasticsearch("http://localhost:9200")
 
 @api_view(['GET'])
 def search_products(request):
-    pass
+    query = request.GET.get("q", "")  # parâmetro de busca opcional
+
+    # Se não tiver query, retorna todos os produtos (limitado)
+    if not query:
+        resp = es.search(index="products", body={"query": {"match_all": {}}}, size=20)
+    else:
+        resp = es.search(
+            index="products",
+            body={
+                "query": {
+                    "multi_match": {
+                        "query": query,
+                        "fields": ["name", "brand", "description"]
+                    }
+                }
+            },
+            size=20
+        )
+
+    # Extrai apenas os documentos
+    produtos = [hit["_source"] for hit in resp["hits"]["hits"]]
+
+    return Response(produtos)
+
 
 @csrf_exempt
 def whatsapp_webhook(request):

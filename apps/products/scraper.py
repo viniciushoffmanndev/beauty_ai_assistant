@@ -4,40 +4,37 @@ import requests
 from .validators import validate_product
 
 
-def get_text(el):
-    return  el.text.strip() if el else None
+def get_text(parent, tag, **kwargs):
+    el = parent.find(tag, **kwargs)
+    return el.text.strip() if el else None
 
-def get_attr(el, attr):
-    return el.get(attr) if el and el.has_attr(attr) else None
+def get_attr(parent, tag, **kwargs):
+    el = parent.find(tag, **kwargs)
+    return el.attrs if el else {}
 
-def get_price(text):
-    if not text:
-        return None
-    try:
-        return float(text.replace("R$", "").replace(",", "."))
-    except:
-        return None
+def get_price(parent, tag, **kwargs):
+    el = parent.find(tag, **kwargs)
+    return el.text.strip() if el else None
 
 def parse_product(item):
-    
-    nome = get_text("span", class_="showcase-item-title").text.strip()
-    marca = get_text("span", class_="showcase-item-brand").text.strip()
+    nome = get_text(item, "span", class_="showcase-item-title")
+    marca = get_text(item, "span", class_="showcase-item-brand")
 
-    preco = get_price("span", class_="price-value").text.strip()
-    preco = float(preco.replace("R$", "").replace(",", "."))
+    preco = get_price(item, "span", class_="price-value")
+    preco = float(preco.replace("R$", "").replace(",", ".")) if preco else None
 
-    preco_antigo = get_price("div", class_="item-price-max")
-    preco_antigo = float(preco_antigo.text.replace("R$", "").replace(",", ".")) if preco_antigo else None
+    preco_antigo = get_price(item, "div", class_="item-price-max")
+    preco_antigo = float(preco_antigo.replace("R$", "").replace(",", ".")) if preco_antigo else None
 
-    desconto = get_text("span", class_="item-discount")
-    desconto = int(desconto.text.replace("-", "").replace("%", "").strip()) if desconto else None
+    desconto = get_text(item, "span", class_="item-discount")
+    desconto = int(desconto.replace("-", "").replace("%", "").strip()) if desconto else None
 
-    descricao = get_text("p", class_="showcase-item-description").text.strip()
+    descricao = get_text(item, "p", class_="showcase-item-description")
 
-    link = get_attr("a", class_="showcase-item-name")["href"]
-    imagem = get_attr("img")["src"]
+    link = get_attr(item, "a", class_="showcase-item-name").get("href")
+    imagem = get_attr(item, "img").get("src")
 
-    rating_div = get_text("div", class_="showcase-item-rating")
+    rating_div = item.find("div", class_="showcase-item-rating")
     rating = None
     reviews = None
 
@@ -48,7 +45,7 @@ def parse_product(item):
         if "avaliações" in rating_div.get("title", ""):
             reviews = int(rating_div["title"].split(" ")[0])
 
-    raw = json.loads(item["data-event"].replace("&quot;", '"'))
+    raw = json.loads(item.get("data-event", "").replace("&quot;", '"'))
 
     return {
         "external_id": raw.get("sku"),
@@ -65,8 +62,19 @@ def parse_product(item):
         "image": imagem,
     }
 
-def scrape_products(url):
-    headers = {"User-Agent": "Mozilla/5.0"}
+def scrapping(url):
+
+    headers = {
+    "User-Agent": (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+        "Version/18.5 Mobile/15E148 Safari/604.1"
+    ),
+    "Accept": "application/json",
+    "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Connection": "keep-alive",
+    }
+
     response = requests.get(url, headers=headers, timeout=10)
 
     if response.status_code != 200:
