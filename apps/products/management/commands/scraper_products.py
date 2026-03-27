@@ -1,16 +1,11 @@
 from django.core.management.base import BaseCommand
-from apps.products.scraper import scrapping
-from elasticsearch import Elasticsearch
-from datetime import datetime
-
-
-from django.core.management.base import BaseCommand
 from elasticsearch import Elasticsearch
 from apps.products.scraper import scrapping
+from apps.products.models import Product
 from datetime import datetime
 
 class Command(BaseCommand):
-    help = "Roda o scraper e salva/atualiza os produtos no Elasticsearch"
+    help = "Roda o scraper e salva/atualiza os produtos no Elasticsearch e no banco SQLite"
 
     def handle(self, *args, **options):
         es = Elasticsearch(hosts=["http://localhost:9200"])
@@ -23,9 +18,7 @@ class Command(BaseCommand):
             # cálculo automático do desconto
             if produto.get("old_price") and produto.get("price"):
                 try:
-                    desconto = round(
-                        (1 - produto["price"] / produto["old_price"]) * 100, 2
-                    )
+                    desconto = round((1 - produto["price"] / produto["old_price"]) * 100, 2)
                     produto["discount"] = desconto
                 except Exception:
                     produto["discount"] = None
@@ -33,7 +26,26 @@ class Command(BaseCommand):
             # adicionar timestamp da coleta
             produto["scraped_at"] = datetime.utcnow().isoformat()
 
-            # upsert no Elasticsearch
+            # salvar/atualizar no banco SQLite
+            Product.objects.update_or_create(
+                external_id=produto["external_id"],
+                defaults={
+                    "source": produto.get("source", "boticario"),
+                    "name": produto.get("name"),
+                    "brand": produto.get("brand"),
+                    "price": produto.get("price"),
+                    "old_price": produto.get("old_price"),
+                    "discount": produto.get("discount"),
+                    "rating": produto.get("rating"),
+                    "review_count": produto.get("review_count"),
+                    "description": produto.get("description"),
+                    "url": produto.get("url"),
+                    "image": produto.get("image"),
+                    "scraped_at": produto["scraped_at"],
+                }
+            )
+
+            # salvar/atualizar no Elasticsearch
             es.update(
                 index="products",
                 id=produto["external_id"],
@@ -41,5 +53,5 @@ class Command(BaseCommand):
             )
 
         self.stdout.write(
-            self.style.SUCCESS(f"{len(produtos)} produtos salvos/atualizados no Elasticsearch.")
+            self.style.SUCCESS(f"{len(produtos)} produtos salvos/atualizados no SQLite e no Elasticsearch.")
         )
