@@ -3,6 +3,18 @@ from elasticsearch import Elasticsearch
 from apps.products.scraper import scrapping
 from apps.products.models import Product
 from datetime import datetime
+import hashlib
+
+def gerar_external_id(produto):
+    """
+    Gera um external_id único.
+    Se já existir no produto, usa ele.
+    Caso contrário, gera um hash da URL.
+    """
+    if produto.get("external_id"):
+        return produto["external_id"]
+    else:
+        return hashlib.md5(produto["url"].encode()).hexdigest()
 
 class Command(BaseCommand):
     help = "Roda o scraper e salva/atualiza os produtos no Elasticsearch e no banco SQLite"
@@ -26,9 +38,12 @@ class Command(BaseCommand):
             # adicionar timestamp da coleta
             produto["scraped_at"] = datetime.utcnow().isoformat()
 
+            # garantir external_id único
+            external_id = gerar_external_id(produto)
+
             # salvar/atualizar no banco SQLite
             Product.objects.update_or_create(
-                external_id=produto["external_id"],
+                external_id=external_id,
                 defaults={
                     "source": produto.get("source", "boticario"),
                     "name": produto.get("name"),
@@ -48,7 +63,7 @@ class Command(BaseCommand):
             # salvar/atualizar no Elasticsearch
             es.update(
                 index="products",
-                id=produto["external_id"],
+                id=external_id,
                 body={"doc": produto, "doc_as_upsert": True}
             )
 
