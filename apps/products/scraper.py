@@ -32,7 +32,8 @@ def parse_product(item):
     descricao = get_text(item, "p", class_="showcase-item-description")
 
     link = get_attr(item, "a", class_="showcase-item-name").get("href")
-    imagem = get_attr(item, "img").get("src")
+    attrs = get_attr(item, "img")
+    imagem = attrs.get("data-src") or attrs.get("data-original") or attrs.get("src")
 
     rating_div = item.find("div", class_="showcase-item-rating")
     rating = None
