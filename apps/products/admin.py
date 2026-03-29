@@ -18,8 +18,17 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ("name", "description", "brand")
     list_filter = ("brand", "is_active")
 
+    readonly_fields = ("image_preview",)
+
     def image_tag(self, obj):
         if obj.image:
             return format_html('<img src="{}" width="50" height="50" />', obj.image)
         return "-"
     image_tag.short_description = "Image"
+
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" style="max-height: 300px;" />', obj.image)
+        return "No image available"
+    image_preview.short_description = "Preview"
+
