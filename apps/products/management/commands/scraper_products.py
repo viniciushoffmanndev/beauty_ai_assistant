@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.products.models import Product
-from apps.products.scraper import BoticarioScraper
+from apps.products.scraper.boticario import BoticarioScraper
 
 logger = logging.getLogger(__name__)
 
