@@ -62,11 +62,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'apps.chat',
-    'apps.experiments',
     'apps.products',
-    'apps.recommender',
-    'apps.search',
     'django_elasticsearch_dsl'
 ]
 
