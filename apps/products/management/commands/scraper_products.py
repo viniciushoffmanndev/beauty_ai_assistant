@@ -1,11 +1,16 @@
-from django.core.management.base import BaseCommand
-from elasticsearch import Elasticsearch
-from apps.products.scraper import scrapping
-from apps.products.models import Product
-from datetime import datetime
 import hashlib
+import logging
 
-def gerar_external_id(produto):
+from django.core.management.base import BaseCommand
+from django.db import transaction
+
+from apps.products.models import Product
+from apps.products.scraper import BoticarioScraper
+
+logger = logging.getLogger(__name__)
+
+
+def gerar_external_id(produto: dict) -> str:
     """
     Gera um external_id único.
     Se já existir no produto, usa ele.
@@ -13,60 +18,70 @@ def gerar_external_id(produto):
     """
     if produto.get("external_id"):
         return produto["external_id"]
-    else:
-        return hashlib.md5(produto["url"].encode()).hexdigest()
+
+    url = produto.get("url", "")
+    return hashlib.md5(url.encode()).hexdigest()
+
 
 class Command(BaseCommand):
-    help = "Roda o scraper e salva/atualiza os produtos no Elasticsearch e no banco SQLite"
+    help = "Executa o scraper e salva/atualiza os produtos no banco"
 
     def handle(self, *args, **options):
-        es = Elasticsearch(hosts=["http://localhost:9200"])
-        url = "https://www.boticario.com.br/perfumaria/"
+        url = "https://www.boticario.com.br/lancamentos/"
 
-        self.stdout.write(self.style.NOTICE(f"Rodando scraper em {url}..."))
-        produtos = scrapping(url)
+        self.stdout.write("Iniciando scraping de produtos...")
 
-        for produto in produtos:
-            # cálculo automático do desconto
-            if produto.get("old_price") and produto.get("price"):
+        scraper = BoticarioScraper()
+        products_data = scraper.scrape(url)
+
+        created_count = 0
+        updated_count = 0
+        ignored_count = 0
+
+        with transaction.atomic():
+            for data in products_data:
                 try:
-                    desconto = round((1 - produto["price"] / produto["old_price"]) * 100, 2)
-                    produto["discount"] = desconto
-                except Exception:
-                    produto["discount"] = None
+                    external_id = gerar_external_id(data)
 
-            # adicionar timestamp da coleta
-            produto["scraped_at"] = datetime.utcnow().isoformat()
+                    if not external_id or not data.get("name"):
+                        ignored_count += 1
+                        logger.warning(
+                            "Produto ignorado por falta de external_id ou name | data=%s",
+                            data,
+                        )
+                        continue
 
-            # garantir external_id único
-            external_id = gerar_external_id(produto)
+                    obj, created = Product.objects.update_or_create(
+                        external_id=external_id,
+                        source=data.get("source", "boticario"),
+                        defaults={
+                            "name": data.get("name"),
+                            "brand": data.get("brand"),
+                            "price": data.get("price"),
+                            "old_price": data.get("old_price"),
+                            "discount": data.get("discount"),
+                            "rating": data.get("rating"),
+                            "review_count": data.get("review_count"),
+                            "description": data.get("description"),
+                            "url": data.get("url"),
+                            "image": data.get("image"),
+                        },
+                    )
 
-            # salvar/atualizar no banco SQLite
-            Product.objects.update_or_create(
-                external_id=external_id,
-                defaults={
-                    "source": produto.get("source", "boticario"),
-                    "name": produto.get("name"),
-                    "brand": produto.get("brand"),
-                    "price": produto.get("price"),
-                    "old_price": produto.get("old_price"),
-                    "discount": produto.get("discount"),
-                    "rating": produto.get("rating"),
-                    "review_count": produto.get("review_count"),
-                    "description": produto.get("description"),
-                    "url": produto.get("url"),
-                    "image": produto.get("image"),
-                    "scraped_at": produto["scraped_at"],
-                }
-            )
+                    if created:
+                        created_count += 1
+                    else:
+                        updated_count += 1
 
-            # salvar/atualizar no Elasticsearch
-            es.update(
-                index="products",
-                id=external_id,
-                body={"doc": produto, "doc_as_upsert": True}
-            )
+                except Exception as exc:
+                    ignored_count += 1
+                    logger.exception("Erro ao salvar produto no banco: %s", exc)
 
         self.stdout.write(
-            self.style.SUCCESS(f"{len(produtos)} produtos salvos/atualizados no SQLite e no Elasticsearch.")
+            self.style.SUCCESS(
+                "Scraping concluído com sucesso | "
+                f"criados={created_count} | "
+                f"atualizados={updated_count} | "
+                f"ignorados={ignored_count}"
+            )
         )
