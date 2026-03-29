@@ -1,69 +1,89 @@
-from apps.products.services import search_products_in_es
-from .client import send_whatsapp_image, send_whatsapp_message, send_whatsapp_cta
+from apps.products.services import (
+    product_recommendation_service,
+    salvar_escolha_usuario,
+)
+from apps.products.whatsapp.client import (
+    send_whatsapp_cta,
+    send_whatsapp_image,
+    send_whatsapp_message,
+    send_whatsapp_buttons,
+    send_whatsapp_list,
+)
 
-def handle_whatsapp_message(to, query):
-    results = search_products_in_es(query, size=3)
+
+def handle_text_message(to: str, query: str) -> None:
+    results = product_recommendation_service.recommend_products(query, size=5)
 
     if not results:
         send_whatsapp_message(
             to,
-            "Não encontrei produtos para sua busca. Deseja tentar outra categoria?"
+            product_recommendation_service.build_no_results_message()
         )
         return
 
-    for r in results:
-        name = r.get("name") or "Produto"
-        brand = r.get("brand") or ""
-        price = r.get("price")
-        old_price = r.get("old_price")
-        discount = r.get("discount")
-        rating = r.get("rating")
-        review_count = r.get("review_count")
-        description = r.get("description")
-        image = r.get("image")
-        url = r.get("url")
+    send_whatsapp_list(to, results)
 
-        # preço
-        if price is not None:
-            if old_price is not None and discount is not None:
-                price_info = f"De R$ {old_price:.2f} por R$ {price:.2f} (-{discount}%)"
-            else:
-                price_info = f"R$ {price:.2f}"
-        else:
-            price_info = "Preço indisponível"
 
-        # avaliação
-        if rating is not None and review_count is not None:
-            rating_info = f"{rating:.1f} ({review_count} avaliações)"
-        else:
-            rating_info = ""
+def handle_list_reply(to: str, user_id: str, product_id: str) -> None:
+    product = product_recommendation_service.get_product_details(product_id)
 
-        # legenda
-        caption = f"*{name}*"
-        if brand:
-            caption += f" ({brand})"
+    if not product:
+        send_whatsapp_message(to, "Produto não encontrado.")
+        return
 
-        caption += f"\n{price_info}"
+    salvar_escolha_usuario(user_id, product_id)
 
-        if rating_info:
-            caption += f"\n{rating_info}"
+    caption = product_recommendation_service.build_product_caption(product)
 
-        if description:
-            caption += f"\n{description[:80]}..."
+    if product.get("image"):
+        send_whatsapp_image(
+            to,
+            product["image"],
+            caption
+        )
+    else:
+        send_whatsapp_message(to, caption)
 
-        if url:
-            caption += f"\n\n{url}"
+    send_whatsapp_buttons(
+        to,
+        "O que deseja fazer?",
+        [
+            {"id": f"buy_now|{product_id}", "title": "Comprar agora"},
+            {"id": f"view_description|{product_id}", "title": "Ver descrição"},
+            {"id": f"talk_to_agent|{product_id}", "title": "Atendente"},
+        ]
+    )
 
-        # envio
-        if url:
-            send_whatsapp_cta(
-                to,
-                caption,
-                "Comprar agora",
-                url
-            )
-        elif image:
-            send_whatsapp_image(to, image, caption)
-        else:
-            send_whatsapp_message(to, caption)
-        
+
+def handle_button_reply(to: str, product_id: str, button_id: str) -> None:
+    product = product_recommendation_service.get_product_details(product_id)
+
+    if not product:
+        send_whatsapp_message(to, "Produto não encontrado.")
+        return
+
+    if button_id == "buy_now":
+        send_whatsapp_cta(
+            to,
+            f"Confira {product.get('name', 'este produto')} no site:",
+            "Comprar agora",
+            product.get("url", "https://www.boticario.com.br/")
+        )
+
+    elif button_id == "view_description":
+        send_whatsapp_message(
+            to,
+            product_recommendation_service.build_description_message(product)
+        )
+
+    elif button_id == "talk_to_agent":
+        send_whatsapp_message(
+            to,
+            "Um atendente irá falar com você em instantes."
+        )
+
+    else:
+        send_whatsapp_message(
+            to,
+            "Não entendi sua escolha. Tente novamente."
+        )
