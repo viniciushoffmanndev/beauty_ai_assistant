@@ -11,7 +11,7 @@ O projeto coleta produtos de e-commerce, persiste no banco, indexa no Elasticsea
 
 ---
 
-## 🚀 Features
+## Features
 
 - Scraping de produtos do site do Boticário
 - Persistência em banco com Django ORM
