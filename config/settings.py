@@ -12,6 +12,14 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 from decouple import config
+import os
+from dotenv import load_dotenv
+
+
+load_dotenv()  # carrega variáveis do .env
+
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
 
 ELASTICSEARCH_URL = config("ELASTICSEARCH_URL", default="http://localhost:9200")
