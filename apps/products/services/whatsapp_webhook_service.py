@@ -18,42 +18,53 @@ class WhatsAppWebhookService:
         contact_wa_id = WhatsAppWebhookParser.extract_contact_wa_id(entry)
 
         for message in messages:
-            message_type = WhatsAppWebhookParser.extract_message_type(message)
             sender = WhatsAppWebhookParser.extract_sender(message)
+            message_type = WhatsAppWebhookParser.extract_message_type(message)
 
-            if not sender:
+            if not sender or not message_type:
                 continue
 
             if message_type == "text":
-                text_body = WhatsAppWebhookParser.extract_text_body(message)
-
-                if text_body:
-                    handle_text_message(sender, text_body)
+                WhatsAppWebhookService._handle_text(sender, message)
 
             elif message_type == "interactive":
-                interactive_type = WhatsAppWebhookParser.extract_interactive_type(message)
+                WhatsAppWebhookService._handle_interactive(
+                    sender=sender,
+                    contact_wa_id=contact_wa_id,
+                    message=message,
+                )
 
-                if interactive_type == "list_reply":
-                    selected_id = WhatsAppWebhookParser.extract_list_reply_id(message)
+    @staticmethod
+    def _handle_text(sender: str, message: dict) -> None:
+        text_body = WhatsAppWebhookParser.extract_text_body(message)
 
-                    if selected_id:
-                        handle_list_reply(
-                            to=sender,
-                            user_id=contact_wa_id or sender,
-                            product_id=selected_id,
-                        )
+        if text_body:
+            handle_text_message(sender, text_body)
 
-                elif interactive_type == "button_reply":
-                    button_id = WhatsAppWebhookParser.extract_button_reply_id(message)
+    @staticmethod
+    def _handle_interactive(sender: str, contact_wa_id: str | None, message: dict) -> None:
+        interactive_type = WhatsAppWebhookParser.extract_interactive_type(message)
 
-                    if button_id:
-                        # Espera formato: action|product_id
-                        parts = button_id.split("|")
+        if interactive_type == "list_reply":
+            selected_id = WhatsAppWebhookParser.extract_list_reply_id(message)
 
-                        if len(parts) == 2:
-                            action, product_id = parts
-                            handle_button_reply(
-                                to=sender,
-                                product_id=product_id,
-                                button_id=action,
-                            )
+            if selected_id:
+                handle_list_reply(
+                    to=sender,
+                    user_id=contact_wa_id or sender,
+                    product_id=selected_id,
+                )
+
+        elif interactive_type == "button_reply":
+            button_id = WhatsAppWebhookParser.extract_button_reply_id(message)
+
+            if button_id:
+                parts = button_id.split("|")
+
+                if len(parts) == 2:
+                    action, product_id = parts
+                    handle_button_reply(
+                        to=sender,
+                        product_id=product_id,
+                        button_id=action,
+                    )

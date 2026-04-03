@@ -31,19 +31,19 @@ class WhatsAppWebhookParser:
 
     @staticmethod
     def extract_list_reply_id(message: dict[str, Any]) -> str | None:
-        return (
-            message.get("interactive", {})
-            .get("list_reply", {})
-            .get("id")
-        )
+        return message.get("interactive", {}).get("list_reply", {}).get("id")
+
+    @staticmethod
+    def extract_list_reply_title(message: dict[str, Any]) -> str | None:
+        return message.get("interactive", {}).get("list_reply", {}).get("title")
 
     @staticmethod
     def extract_button_reply_id(message: dict[str, Any]) -> str | None:
-        return (
-            message.get("interactive", {})
-            .get("button_reply", {})
-            .get("id")
-        )
+        return message.get("interactive", {}).get("button_reply", {}).get("id")
+
+    @staticmethod
+    def extract_button_reply_title(message: dict[str, Any]) -> str | None:
+        return message.get("interactive", {}).get("button_reply", {}).get("title")
 
     @staticmethod
     def extract_interactive_type(message: dict[str, Any]) -> str | None:
