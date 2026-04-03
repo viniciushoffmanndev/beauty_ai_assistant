@@ -50,6 +50,4 @@ class ProductDocument(Document):
 
     class Django:
         model = Product
-        fields = [
-            "id",
-        ]
+        fields = ["id"]

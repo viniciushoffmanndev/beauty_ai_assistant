@@ -1,5 +1,7 @@
 from django.urls import path
-from apps.products.views import search_products, whatsapp_webhook
+
+from apps.products.api_views import search_products
+from apps.products.webhook.views import whatsapp_webhook
 
 urlpatterns = [
     path("search/", search_products, name="search_products"),
