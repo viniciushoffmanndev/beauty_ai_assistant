@@ -19,7 +19,6 @@ class ProductCategory(models.TextChoices):
 
 
 class Product(models.Model):
-    # Identificação externa
     external_id = models.CharField(max_length=100, db_index=True)
     source = models.CharField(
         max_length=50,
@@ -27,11 +26,9 @@ class Product(models.Model):
         db_index=True,
     )
 
-    # Básico
     name = models.CharField(max_length=255, db_index=True)
     brand = models.CharField(max_length=100, blank=True, default="")
 
-    # Classificação semântica
     target = models.CharField(
         max_length=20,
         choices=ProductTarget.choices,
@@ -54,7 +51,6 @@ class Product(models.Model):
         help_text="Família olfativa ou perfil aromático",
     )
 
-    # Preços
     price = models.DecimalField(max_digits=10, decimal_places=2)
     old_price = models.DecimalField(
         max_digits=10,
@@ -64,18 +60,14 @@ class Product(models.Model):
     )
     discount = models.PositiveIntegerField(null=True, blank=True)
 
-    # Avaliação
     rating = models.FloatField(null=True, blank=True)
     review_count = models.PositiveIntegerField(null=True, blank=True)
 
-    # Conteúdo
     description = models.TextField(null=True, blank=True)
 
-    # Mídia / links
     url = models.URLField()
     image = models.URLField(null=True, blank=True)
 
-    # Controle
     is_active = models.BooleanField(default=True, db_index=True)
     scraped_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)

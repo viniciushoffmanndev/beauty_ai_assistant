@@ -33,4 +33,3 @@ class ProductScrapedDTO:
             "url": self.url,
             "image": self.image,
         }
-    
